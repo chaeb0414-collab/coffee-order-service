@@ -29,24 +29,13 @@ public class OrderService {
 
     @Transactional
     public OrderResponse create(Long memberId, Long menuId, Integer quantity) {
-        if (quantity == null || quantity <= 0) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_QUANTITY);
-        }
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Menu menu = menuRepository.findById(menuId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MENU_NOT_FOUND));
         Point point = pointRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POINT_NOT_FOUND));
-        Orders order;
-        try {
-            order = new Orders(member, menu, quantity);
-        } catch (ArithmeticException exception) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_AMOUNT);
-        }
-        if (point.getBalance() < order.getTotalPrice()) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_POINT);
-        }
+        Orders order = new Orders(member, menu, quantity);
         point.deduct(order.getTotalPrice());
         ordersRepository.save(order);
         eventPublisher.publishEvent(new OrderData(order.getId(), memberId, menuId, order.getTotalPrice()));

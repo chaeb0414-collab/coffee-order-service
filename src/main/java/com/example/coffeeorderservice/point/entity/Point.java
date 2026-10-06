@@ -1,6 +1,8 @@
 package com.example.coffeeorderservice.point.entity;
 
 import com.example.coffeeorderservice.member.entity.Member;
+import com.example.coffeeorderservice.global.exception.BusinessException;
+import com.example.coffeeorderservice.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -36,17 +38,21 @@ public class Point {
 
     public void charge(long amount) {
         if (amount <= 0) {
-            throw new IllegalArgumentException("충전 금액은 0원보다 커야 합니다.");
+            throw new BusinessException(ErrorCode.INVALID_CHARGE_AMOUNT);
         }
-        balance = Math.addExact(balance, amount);
+        try {
+            balance = Math.addExact(balance, amount);
+        } catch (ArithmeticException exception) {
+            throw new BusinessException(ErrorCode.INVALID_CHARGE_AMOUNT);
+        }
     }
 
     public void deduct(long amount) {
         if (amount < 0) {
-            throw new IllegalArgumentException("차감 금액은 0원 이상이어야 합니다.");
+            throw new BusinessException(ErrorCode.INVALID_ORDER_AMOUNT);
         }
         if (balance < amount) {
-            throw new IllegalArgumentException("보유 포인트가 부족합니다.");
+            throw new BusinessException(ErrorCode.INSUFFICIENT_POINT);
         }
         balance -= amount;
     }

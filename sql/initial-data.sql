@@ -22,4 +22,12 @@ INSERT INTO menu (id, name, price, created_at)
 SELECT 3, '바닐라라테', 5500, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (SELECT 1 FROM menu WHERE id = 3);
 
+INSERT INTO menu (id, name, price, created_at)
+SELECT 4, '카푸치노', 5000, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM menu WHERE id = 4);
+
+INSERT INTO menu (id, name, price, created_at)
+SELECT 5, '카페모카', 5500, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM menu WHERE id = 5);
+
 COMMIT;

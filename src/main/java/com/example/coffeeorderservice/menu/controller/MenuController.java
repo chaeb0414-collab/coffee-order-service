@@ -1,6 +1,7 @@
 package com.example.coffeeorderservice.menu.controller;
 
 import com.example.coffeeorderservice.menu.dto.MenuListResponse;
+import com.example.coffeeorderservice.menu.dto.PopularMenuListResponse;
 import com.example.coffeeorderservice.menu.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,5 +18,10 @@ public class MenuController {
     @GetMapping
     public MenuListResponse getMenus() {
         return menuService.getMenus();
+    }
+
+    @GetMapping("/popular")
+    public PopularMenuListResponse getPopularMenus() {
+        return menuService.getPopularMenus();
     }
 }

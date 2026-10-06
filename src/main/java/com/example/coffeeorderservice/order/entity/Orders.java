@@ -41,7 +41,7 @@ public class Orders {
     @Getter(AccessLevel.NONE)
     private List<OrderItem> orderItems = new ArrayList<>();
 
-    public Orders(Member member, Menu menu, int quantity) {
+    public Orders(Member member, Menu menu, Integer quantity) {
         this.member = Objects.requireNonNull(member, "사용자는 필수입니다.");
         OrderItem item = new OrderItem(this, menu, quantity);
         this.orderItems.add(item);

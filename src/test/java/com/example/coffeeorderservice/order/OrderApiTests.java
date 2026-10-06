@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -122,7 +123,7 @@ class OrderApiTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0", "-1", "null"})
+    @ValueSource(strings = {"0", "-1", "null", "1.5"})
     void rejectsInvalidQuantity(String quantity) throws Exception {
         String request = "{\"memberId\":" + member.getId() + ",\"menuId\":" + menu.getId() + ",\"quantity\":" + quantity + "}";
         mockMvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content(request))
@@ -176,6 +177,21 @@ class OrderApiTests {
         doThrow(new IllegalStateException("주문 저장 실패")).when(ordersRepository).save(any(Orders.class));
         assertThrows(IllegalStateException.class, () -> orderService.create(member.getId(), menu.getId(), 1));
         assertUnchanged();
+    }
+
+    @Test
+    void saveFailureReturnsCommonServerErrorWithoutExposingDetails() throws Exception {
+        doThrow(new IllegalStateException("주문 저장 내부 오류")).when(ordersRepository).save(any(Orders.class));
+        mockMvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content(body(1)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().json("{\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"요청 처리 중 오류가 발생했습니다.\"}"));
+        assertUnchanged();
+    }
+
+    @Test
+    void unsupportedHttpMethodRemainsMethodNotAllowed() throws Exception {
+        mockMvc.perform(get("/api/orders"))
+                .andExpect(status().isMethodNotAllowed());
     }
 
     @Test

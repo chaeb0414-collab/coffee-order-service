@@ -8,38 +8,41 @@ import com.example.coffeeorderservice.order.entity.Orders;
 import com.example.coffeeorderservice.point.entity.Point;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
-import org.hibernate.cfg.Configuration;
+import jakarta.persistence.EntityManagerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.UUID;
-
 import static org.junit.jupiter.api.Assertions.*;
 
+@SpringBootTest
+@ActiveProfiles("test")
 class EntityPersistenceTests {
+
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private SessionFactory sessionFactory;
 
     @BeforeEach
     void setUp() {
-        sessionFactory = new Configuration()
-                .addAnnotatedClass(Member.class)
-                .addAnnotatedClass(Point.class)
-                .addAnnotatedClass(Menu.class)
-                .addAnnotatedClass(Orders.class)
-                .addAnnotatedClass(OrderItem.class)
-                .setProperty("hibernate.connection.driver_class", "org.h2.Driver")
-                .setProperty("hibernate.connection.url", "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=MySQL")
-                .setProperty("hibernate.hbm2ddl.auto", "create-drop")
-                .buildSessionFactory();
+        sessionFactory = entityManagerFactory.unwrap(SessionFactory.class);
     }
 
     @AfterEach
     void tearDown() {
-        if (sessionFactory != null) {
-            sessionFactory.close();
-        }
+        jdbcTemplate.update("delete from order_item");
+        jdbcTemplate.update("delete from orders");
+        jdbcTemplate.update("delete from point");
+        jdbcTemplate.update("delete from menu");
+        jdbcTemplate.update("delete from member");
     }
 
     @Test

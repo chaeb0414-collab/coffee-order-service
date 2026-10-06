@@ -1,6 +1,8 @@
 package com.example.coffeeorderservice.order.entity;
 
 import com.example.coffeeorderservice.menu.entity.Menu;
+import com.example.coffeeorderservice.global.exception.BusinessException;
+import com.example.coffeeorderservice.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -35,11 +37,11 @@ public class OrderItem {
     @Column(nullable = false, updatable = false)
     private Integer quantity;
 
-    OrderItem(Orders order, Menu menu, int quantity) {
+    OrderItem(Orders order, Menu menu, Integer quantity) {
         this.order = Objects.requireNonNull(order, "주문은 필수입니다.");
         this.menu = Objects.requireNonNull(menu, "메뉴는 필수입니다.");
-        if (quantity <= 0) {
-            throw new IllegalArgumentException("주문 수량은 0보다 커야 합니다.");
+        if (quantity == null || quantity <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_QUANTITY);
         }
         this.menuName = menu.getName();
         this.menuPrice = menu.getPrice();
@@ -47,6 +49,10 @@ public class OrderItem {
     }
 
     public long getTotalPrice() {
-        return Math.multiplyExact(menuPrice, quantity.longValue());
+        try {
+            return Math.multiplyExact(menuPrice, quantity.longValue());
+        } catch (ArithmeticException exception) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_AMOUNT);
+        }
     }
 }

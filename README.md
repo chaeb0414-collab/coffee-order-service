@@ -4,7 +4,7 @@
 
 포인트로 커피를 주문하고, 최근 7일간 주문 내역으로 인기 메뉴를 조회하는 API 서버입니다.
 
-필수 요구사항을 구현 범위로 정하며, 아래 API 명세와 전략은 구현할 설계입니다.
+필수 요구사항의 API와 주문 데이터 Mock 전송을 구현했습니다.
 
 - 커피 메뉴 목록 조회
 - 사용자 포인트 충전 (1원 = 1P)
@@ -31,10 +31,22 @@ docker compose up -d
 앱이 시작되어 테이블이 생성되면 별도 터미널에서 초기 데이터를 입력합니다.
 
 ```bash
-docker compose exec -T mysql mysql --default-character-set=utf8mb4 -ucoffee -pcoffee1234 coffee_order < docs/sql/seed.sql
+docker compose exec -T mysql mysql --default-character-set=utf8mb4 -ucoffee -pcoffee1234 coffee_order < sql/initial-data.sql
 ```
 
-사용자 ID `1`(테스트 사용자), 잔액 `0P`, 메뉴 ID `1`~`3`(아메리카노 4,500원·카페라테 5,000원·바닐라라테 5,500원)을 준비합니다. 재실행해도 기존 데이터와 충전한 잔액은 변경하지 않습니다.
+사용자 ID `1`(테스트 사용자), 잔액 `0P`, 메뉴 ID `1`~`5`(아메리카노 4,500원·카페라테 5,000원·바닐라라테 5,500원·카푸치노 5,000원·카페모카 5,500원)을 준비합니다. 재실행해도 기존 데이터와 충전한 잔액은 변경하지 않습니다.
+
+### 인기 메뉴 확인용 샘플 주문
+
+기본 데이터를 입력한 뒤 선택적으로 실행합니다.
+
+```bash
+docker compose exec -T mysql mysql --default-character-set=utf8mb4 -ucoffee -pcoffee1234 coffee_order < sql/sample-orders.sql
+```
+
+별도 샘플 사용자(ID `100001`, 잔액 `0P`)의 결제 완료 주문 12개를 준비합니다. 아메리카노 5회·카페라테 3회·바닐라라테 2회·카푸치노 1회·카페모카 1회로, 다른 주문이 없다면 인기 메뉴는 아메리카노 → 카페라테 → 바닐라라테입니다.
+
+이 데이터는 조회 확인을 위해 완료된 주문을 SQL로 입력한 것으로, 실제 충전·결제 API나 Mock 전송을 실행하지 않습니다. 기존 사용자의 잔액은 바꾸지 않으며, 재실행해도 샘플 주문을 중복 생성하거나 주문 시각을 갱신하지 않습니다. 생성 후 7일이 지나면 인기 메뉴 집계에서 제외됩니다.
 
 ## 3. ERD
 
@@ -137,7 +149,7 @@ Content-Type: application/json
 {
   "memberId": 1,
   "chargedAmount": 10000,
-  "balance": 15000
+  "balance": 10000
 }
 ```
 
@@ -172,7 +184,7 @@ Content-Type: application/json
   "menuName": "카페라테",
   "quantity": 1,
   "totalPrice": 5000,
-  "remainingPoint": 10000,
+  "remainingPoint": 5000,
   "status": "COMPLETED",
   "orderedAt": "2026-10-02T13:00:00"
 }
@@ -235,14 +247,15 @@ GET /api/menus/popular
 
 | HTTP 상태 | 에러 코드 | 발생 상황 |
 |---:|---|---|
-| 400 | INVALID_CHARGE_AMOUNT | 서비스의 충전 금액 검증 실패 또는 잔액의 정수 범위 초과 |
+| 400 | INVALID_CHARGE_AMOUNT | 충전 규칙 위반 또는 잔액의 정수 범위 초과 |
 | 400 | INVALID_REQUEST | 필수값 누락·입력 제약 위반·JSON 또는 사용자 식별값 형식 오류 |
-| 400 | INVALID_ORDER_QUANTITY | 서비스의 주문 수량 검증 실패 |
+| 400 | INVALID_ORDER_QUANTITY | 주문 수량 규칙 위반 |
 | 400 | INVALID_ORDER_AMOUNT | 가격과 수량의 곱이 정수 범위를 초과 |
 | 400 | INSUFFICIENT_POINT | 보유 포인트 부족 |
 | 404 | MEMBER_NOT_FOUND | 사용자를 찾을 수 없음 |
 | 404 | POINT_NOT_FOUND | 사용자의 포인트 계정을 찾을 수 없음 |
 | 404 | MENU_NOT_FOUND | 메뉴를 찾을 수 없음 |
+| 500 | INTERNAL_SERVER_ERROR | 저장 등 요청 처리 중 서버 오류 |
 
 ## 5. 설계 의도와 문제 해결 전략
 
@@ -256,19 +269,21 @@ GET /api/menus/popular
 
 충전 금액과 주문 수량은 양수여야 합니다. 포인트는 `Point`의 메서드로 충전·차감하고, 잔액이 부족하면 주문을 거절합니다. 결제 금액은 서버가 메뉴 가격과 수량으로 계산합니다.
 
-사용자와 포인트 계정은 초기 데이터로 함께 준비하며, 충전 요청에서 자동 생성하지 않습니다. 사용자 또는 포인트 계정이 없으면 `404`를 반환합니다. 요청 DTO의 입력 검증 실패는 `INVALID_REQUEST`로 통일하고, 서비스의 충전 규칙 위반은 `INVALID_CHARGE_AMOUNT`로 구분합니다. 잔액 덧셈은 `Math.addExact`로 정수 범위 초과를 검사합니다.
+사용자와 포인트 계정은 초기 데이터로 함께 준비하며, 충전 요청에서 자동 생성하지 않습니다. 사용자 또는 포인트 계정이 없으면 `404`를 반환합니다. 요청 DTO의 입력 검증 실패는 `INVALID_REQUEST`로 통일하고, 엔티티의 충전 규칙 위반은 `INVALID_CHARGE_AMOUNT`로 구분합니다. 잔액 덧셈은 `Math.addExact`로 정수 범위 초과를 검사합니다.
 
 포인트 차감과 주문·항목 저장은 서비스의 하나의 DB 트랜잭션에서 처리합니다. 중간에 실패하면 모두 롤백되어 포인트만 차감되는 것을 방지합니다. 이 트랜잭션만으로 동시 요청의 잔액 변경 충돌을 해결하지는 않으며, 다중 인스턴스 동시성 제어는 이번 범위에 포함하지 않습니다.
 
 ### 주문 데이터 전송
 
-전송 책임을 `OrderDataSender` 인터페이스로 분리하고 Mock 구현체를 사용합니다. 주문 트랜잭션 커밋 후 즉시 사용자 식별값·메뉴 ID·결제 금액을 전달하고, 테스트에서 전달값을 확인합니다.
+전송 책임을 `OrderDataSender` 인터페이스로 분리하고, 외부 API 대신 로그로 데이터를 남기는 Mock 구현체를 사용합니다. 주문 트랜잭션 커밋 후 즉시 사용자 식별값·메뉴 ID·결제 금액을 전달하고, 테스트에서 전달값을 확인합니다.
 
 커밋 전에 전송하면 이후 롤백된 주문이 외부에 전달될 수 있어 커밋 후 전송을 선택합니다. 전송 실패 시 완료된 결제는 유지하며, 재시도와 전송 보장은 이번 범위에 포함하지 않습니다.
 
 ### 인기 메뉴 집계
 
 조회 시각을 한 번 계산해 `[조회 시각 - 7일, 조회 시각)`에 완료된 주문을 대상으로 메뉴별 주문 횟수를 DB에서 집계합니다. `SUM(quantity)`는 판매 수량이므로, 주문 횟수 요구사항에 맞춰 메뉴별 `COUNT(DISTINCT order_id)`를 사용합니다. 주문 횟수와 메뉴 ID로 정렬하고 최대 3개를 조회합니다.
+
+메뉴 이름은 현재 메뉴 정보를 사용하며, 이름이 변경되어도 같은 메뉴 ID의 주문을 함께 집계합니다. 조회 시각은 `Clock`으로 제공해 테스트에서 시간을 고정하고 7일 경계를 검증합니다.
 
 ### 기술 선택 이유
 
@@ -279,3 +294,18 @@ GET /api/menus/popular
 | `@Transactional` | 포인트 차감과 주문 저장을 하나의 작업으로 처리 |
 | `Long` | 정수 단위 금액과 포인트를 부동소수점 오차 없이 계산 |
 | Docker Compose | 동일한 MySQL 개발 환경 구성 |
+
+## 6. 테스트
+
+```bash
+# 일반 테스트 (H2 사용)
+./gradlew test
+
+# MySQL 테스트 DB 최초 준비
+docker compose exec -T mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS coffee_order_test; GRANT ALL PRIVILEGES ON coffee_order_test.* TO 'coffee'@'%';"
+
+# 실제 MySQL 통합 테스트
+./gradlew mysqlTest
+```
+
+MySQL 테스트는 개발 DB `coffee_order`와 분리된 `coffee_order_test`의 테이블을 다시 생성합니다. API 응답, 잔액 저장, 주문·결제 롤백, 커밋 후 Mock 전송, 인기 메뉴 집계 및 초기 데이터 재실행을 검증합니다.

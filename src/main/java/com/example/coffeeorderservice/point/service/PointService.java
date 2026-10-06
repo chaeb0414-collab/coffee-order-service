@@ -19,7 +19,7 @@ public class PointService {
 
     @Transactional
     public ChargePointResponse charge(Long memberId, Long amount) {
-        if (amount == null || amount <= 0) {
+        if (amount == null) {
             throw new BusinessException(ErrorCode.INVALID_CHARGE_AMOUNT);
         }
         if (!memberRepository.existsById(memberId)) {
@@ -27,11 +27,7 @@ public class PointService {
         }
         Point point = pointRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POINT_NOT_FOUND));
-        try {
-            point.charge(amount);
-        } catch (ArithmeticException exception) {
-            throw new BusinessException(ErrorCode.INVALID_CHARGE_AMOUNT);
-        }
+        point.charge(amount);
         return new ChargePointResponse(memberId, amount, point.getBalance());
     }
 }

@@ -100,7 +100,7 @@ class PointApiTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"{", "{\"amount\":\"invalid\"}"})
+    @ValueSource(strings = {"{", "{\"amount\":\"invalid\"}", "{\"amount\":1.5}"})
     void rejectsMalformedRequest(String body) throws Exception {
         mockMvc.perform(post(chargeUrl()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
