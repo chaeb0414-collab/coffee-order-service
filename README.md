@@ -28,6 +28,14 @@ docker compose up -d
 
 기본 주소: `http://localhost:8080`
 
+앱이 시작되어 테이블이 생성되면 별도 터미널에서 초기 데이터를 입력합니다.
+
+```bash
+docker compose exec -T mysql mysql --default-character-set=utf8mb4 -ucoffee -pcoffee1234 coffee_order < docs/sql/seed.sql
+```
+
+사용자 ID `1`(테스트 사용자), 잔액 `0P`, 메뉴 ID `1`~`3`(아메리카노 4,500원·카페라테 5,000원·바닐라라테 5,500원)을 준비합니다. 재실행해도 기존 데이터와 충전한 잔액은 변경하지 않습니다.
+
 ## 3. ERD
 
 ```mermaid
@@ -227,10 +235,12 @@ GET /api/menus/popular
 
 | HTTP 상태 | 에러 코드 | 발생 상황 |
 |---:|---|---|
-| 400 | INVALID_CHARGE_AMOUNT | 충전 금액이 0원 이하 |
+| 400 | INVALID_CHARGE_AMOUNT | 서비스의 충전 금액 검증 실패 또는 잔액의 정수 범위 초과 |
+| 400 | INVALID_REQUEST | 필수값 누락·입력 제약 위반·JSON 또는 사용자 식별값 형식 오류 |
 | 400 | INVALID_ORDER_QUANTITY | 주문 수량이 0 이하 |
 | 400 | INSUFFICIENT_POINT | 보유 포인트 부족 |
 | 404 | MEMBER_NOT_FOUND | 사용자를 찾을 수 없음 |
+| 404 | POINT_NOT_FOUND | 사용자의 포인트 계정을 찾을 수 없음 |
 | 404 | MENU_NOT_FOUND | 메뉴를 찾을 수 없음 |
 
 ## 5. 설계 의도와 문제 해결 전략
@@ -244,6 +254,8 @@ GET /api/menus/popular
 ### 포인트 충전과 주문·결제
 
 충전 금액과 주문 수량은 양수여야 합니다. 포인트는 `Point`의 메서드로 충전·차감하고, 잔액이 부족하면 주문을 거절합니다. 결제 금액은 서버가 메뉴 가격과 수량으로 계산합니다.
+
+사용자와 포인트 계정은 초기 데이터로 함께 준비하며, 충전 요청에서 자동 생성하지 않습니다. 사용자 또는 포인트 계정이 없으면 `404`를 반환합니다. 요청 DTO의 입력 검증 실패는 `INVALID_REQUEST`로 통일하고, 서비스의 충전 규칙 위반은 `INVALID_CHARGE_AMOUNT`로 구분합니다. 잔액 덧셈은 `Math.addExact`로 정수 범위 초과를 검사합니다.
 
 포인트 차감과 주문·항목 저장은 서비스의 하나의 DB 트랜잭션에서 처리합니다. 중간에 실패하면 모두 롤백되어 포인트만 차감되는 것을 방지합니다. 이 트랜잭션만으로 동시 요청의 잔액 변경 충돌을 해결하지는 않으며, 다중 인스턴스 동시성 제어는 이번 범위에 포함하지 않습니다.
 
