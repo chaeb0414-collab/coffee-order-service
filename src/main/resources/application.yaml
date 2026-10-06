@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: coffee-order-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/coffee_order?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: coffee
+    password: coffee1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+    properties:
+      hibernate:
+        format_sql: true
+
+    open-in-view: false
+
+logging:
+  level:
+    org.hibernate.SQL: debug

@@ -1,0 +1,21 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: coffee-order-mysql
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: coffee_order
+      MYSQL_USER: coffee
+      MYSQL_PASSWORD: coffee1234
+
+    ports:
+      - "3307:3306"
+
+    volumes:
+      - coffee-order-mysql-data:/var/lib/mysql
+
+    restart: unless-stopped
+
+volumes:
+  coffee-order-mysql-data:
