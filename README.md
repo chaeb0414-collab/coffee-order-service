@@ -237,7 +237,8 @@ GET /api/menus/popular
 |---:|---|---|
 | 400 | INVALID_CHARGE_AMOUNT | 서비스의 충전 금액 검증 실패 또는 잔액의 정수 범위 초과 |
 | 400 | INVALID_REQUEST | 필수값 누락·입력 제약 위반·JSON 또는 사용자 식별값 형식 오류 |
-| 400 | INVALID_ORDER_QUANTITY | 주문 수량이 0 이하 |
+| 400 | INVALID_ORDER_QUANTITY | 서비스의 주문 수량 검증 실패 |
+| 400 | INVALID_ORDER_AMOUNT | 가격과 수량의 곱이 정수 범위를 초과 |
 | 400 | INSUFFICIENT_POINT | 보유 포인트 부족 |
 | 404 | MEMBER_NOT_FOUND | 사용자를 찾을 수 없음 |
 | 404 | POINT_NOT_FOUND | 사용자의 포인트 계정을 찾을 수 없음 |
